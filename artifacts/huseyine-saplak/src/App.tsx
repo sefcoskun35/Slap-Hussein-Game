@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 const GAME_DURATION = 30;
 const CHAR_W = 180;
 const CHAR_H = 200;
-const MOVE_INTERVAL = 1100;
+const MOVE_INTERVAL = 700;
 
 type GamePhase = "start" | "playing" | "ended";
 
