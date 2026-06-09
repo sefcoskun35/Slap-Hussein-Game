@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
 const GAME_DURATION = 30;
+const CHAR_W = 180;
+const CHAR_H = 200;
+const MOVE_INTERVAL = 1100;
 
 type GamePhase = "start" | "playing" | "ended";
 
@@ -10,27 +13,27 @@ interface SlapEffect {
   y: number;
 }
 
-function HuseyinImage({ slapped }: { slapped: boolean }) {
+function HuseyinImage({ slapped, facingRight }: { slapped: boolean; facingRight: boolean }) {
   const [imgError, setImgError] = useState(false);
 
   return (
     <div
       style={{
-        width: 260,
-        height: 260,
+        width: CHAR_W,
+        height: CHAR_H,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        filter: slapped ? "brightness(1.25) saturate(1.5) hue-rotate(-10deg)" : "none",
-        transform: slapped ? "scale(0.92)" : "scale(1)",
-        transition: "transform 0.1s, filter 0.1s",
+        filter: slapped ? "brightness(1.3) saturate(1.5) hue-rotate(-10deg)" : "none",
+        transform: `scaleX(${facingRight ? 1 : -1})`,
+        transition: "filter 0.1s, transform 0.2s",
       }}
     >
       {imgError ? (
         <div
           style={{
-            width: 220,
-            height: 220,
+            width: CHAR_W,
+            height: CHAR_H,
             borderRadius: "50%",
             background: "#F5C57A",
             display: "flex",
@@ -39,13 +42,13 @@ function HuseyinImage({ slapped }: { slapped: boolean }) {
             justifyContent: "center",
             border: "4px dashed #E8A855",
             color: "#A0856A",
-            fontSize: 14,
+            fontSize: 13,
             fontWeight: 600,
             textAlign: "center",
-            gap: 8,
+            gap: 6,
           }}
         >
-          <span style={{ fontSize: 48 }}>👤</span>
+          <span style={{ fontSize: 40 }}>👤</span>
           <span>huseyin.png<br />bekleniyor…</span>
         </div>
       ) : (
@@ -55,8 +58,8 @@ function HuseyinImage({ slapped }: { slapped: boolean }) {
           onError={() => setImgError(true)}
           draggable={false}
           style={{
-            width: 260,
-            height: 260,
+            width: CHAR_W,
+            height: CHAR_H,
             objectFit: "contain",
             display: "block",
             pointerEvents: "none",
@@ -73,18 +76,51 @@ export default function App() {
   const [timeLeft, setTimeLeft] = useState(GAME_DURATION);
   const [slapped, setSlapped] = useState(false);
   const [effects, setEffects] = useState<SlapEffect[]>([]);
-  const [shake, setShake] = useState(false);
+  const [pos, setPos] = useState({ x: 50, y: 50 });
+  const [facingRight, setFacingRight] = useState(true);
+
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const runRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const slappedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const effectCounterRef = useRef(0);
+  const frozenRef = useRef(false);
+  const posRef = useRef({ x: 50, y: 50 });
+  const arenaRef = useRef<HTMLDivElement>(null);
 
-  const startGame = () => {
+  const getRandomPos = useCallback(() => {
+    const arena = arenaRef.current;
+    const aW = arena ? arena.clientWidth : 360;
+    const aH = arena ? arena.clientHeight : 380;
+    const maxX = aW - CHAR_W;
+    const maxY = aH - CHAR_H;
+    return {
+      x: Math.max(0, Math.random() * maxX),
+      y: Math.max(0, Math.random() * maxY),
+    };
+  }, []);
+
+  const moveHuseyin = useCallback(() => {
+    if (frozenRef.current) {
+      frozenRef.current = false;
+      return;
+    }
+    const next = getRandomPos();
+    setFacingRight(next.x >= posRef.current.x);
+    posRef.current = next;
+    setPos(next);
+  }, [getRandomPos]);
+
+  const startGame = useCallback(() => {
+    const start = { x: 80, y: 80 };
+    posRef.current = start;
     setScore(0);
     setTimeLeft(GAME_DURATION);
     setEffects([]);
     setSlapped(false);
+    setFacingRight(true);
+    setPos(start);
     setPhase("playing");
-  };
+  }, []);
 
   useEffect(() => {
     if (phase === "playing") {
@@ -92,21 +128,27 @@ export default function App() {
         setTimeLeft((t) => {
           if (t <= 1) {
             clearInterval(timerRef.current!);
+            clearInterval(runRef.current!);
             setPhase("ended");
             return 0;
           }
           return t - 1;
         });
       }, 1000);
+
+      runRef.current = setInterval(moveHuseyin, MOVE_INTERVAL);
     }
+
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
+      if (runRef.current) clearInterval(runRef.current);
     };
-  }, [phase]);
+  }, [phase, moveHuseyin]);
 
   const handleSlap = useCallback(
     (e: React.MouseEvent | React.TouchEvent) => {
       if (phase !== "playing") return;
+      e.preventDefault();
 
       let x = 0;
       let y = 0;
@@ -121,14 +163,11 @@ export default function App() {
       }
 
       setScore((s) => s + 1);
+      frozenRef.current = true;
 
       setSlapped(true);
-      setShake(true);
       if (slappedTimerRef.current) clearTimeout(slappedTimerRef.current);
-      slappedTimerRef.current = setTimeout(() => {
-        setSlapped(false);
-        setShake(false);
-      }, 150);
+      slappedTimerRef.current = setTimeout(() => setSlapped(false), 200);
 
       effectCounterRef.current += 1;
       const id = effectCounterRef.current;
@@ -142,7 +181,6 @@ export default function App() {
 
   const timerColor =
     timeLeft <= 5 ? "#E74C3C" : timeLeft <= 10 ? "#F39C12" : "#27AE60";
-
   const timerPct = (timeLeft / GAME_DURATION) * 100;
 
   return (
@@ -153,17 +191,16 @@ export default function App() {
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        justifyContent: "center",
+        justifyContent: phase === "playing" ? "flex-start" : "center",
         fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
         userSelect: "none",
         WebkitUserSelect: "none",
         overflowX: "hidden",
-        padding: "20px",
       }}
     >
       {/* START SCREEN */}
       {phase === "start" && (
-        <div style={{ textAlign: "center", animation: "fadeIn 0.4s ease" }}>
+        <div style={{ textAlign: "center", animation: "fadeIn 0.4s ease", padding: 20 }}>
           <div style={{ fontSize: "52px", fontWeight: 900, color: "#2C3E50", lineHeight: 1.1, marginBottom: 8 }}>
             👋 Hüseyin'e
           </div>
@@ -171,13 +208,13 @@ export default function App() {
             Şaplak!
           </div>
           <div style={{ marginBottom: 24, display: "flex", justifyContent: "center" }}>
-            <HuseyinImage slapped={false} />
+            <HuseyinImage slapped={false} facingRight={true} />
           </div>
           <p style={{ color: "#7F8C8D", fontSize: 17, marginBottom: 12 }}>
-            30 saniyede eliminden geldiğince şaplak at!
+            Hüseyin kaçıyor — yakala ve şaplak at!
           </p>
           <p style={{ color: "#7F8C8D", fontSize: 15, marginBottom: 32 }}>
-            Her tıklama = <strong>+1 puan</strong>
+            Her tıklama = <strong>+1 puan</strong> · 30 saniye
           </p>
           <button
             onClick={startGame}
@@ -192,10 +229,7 @@ export default function App() {
               cursor: "pointer",
               boxShadow: "0 6px 20px rgba(39,174,96,0.45)",
               letterSpacing: 1,
-              transition: "transform 0.1s",
             }}
-            onMouseDown={(e) => (e.currentTarget.style.transform = "scale(0.96)")}
-            onMouseUp={(e) => (e.currentTarget.style.transform = "scale(1)")}
           >
             🎮 OYNA
           </button>
@@ -204,96 +238,103 @@ export default function App() {
 
       {/* GAME SCREEN */}
       {phase === "playing" && (
-        <div style={{ width: "100%", maxWidth: 420, textAlign: "center" }}>
+        <div style={{ width: "100%", display: "flex", flexDirection: "column", height: "100dvh" }}>
           {/* HUD */}
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: 16,
-              background: "white",
-              borderRadius: 20,
-              padding: "14px 24px",
-              boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
-            }}
-          >
-            <div>
-              <div style={{ fontSize: 12, color: "#95A5A6", fontWeight: 600, textTransform: "uppercase", letterSpacing: 1 }}>
-                PUAN
-              </div>
-              <div style={{ fontSize: 36, fontWeight: 900, color: "#2C3E50", lineHeight: 1 }}>
-                {score}
-              </div>
-            </div>
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 12, color: "#95A5A6", fontWeight: 600, textTransform: "uppercase", letterSpacing: 1 }}>
-                SÜRE
-              </div>
-              <div style={{ fontSize: 36, fontWeight: 900, color: timerColor, lineHeight: 1, transition: "color 0.3s" }}>
-                {timeLeft}s
-              </div>
-            </div>
-          </div>
-
-          {/* Timer bar */}
-          <div style={{ height: 8, background: "#ECF0F1", borderRadius: 4, marginBottom: 24, overflow: "hidden" }}>
+          <div style={{ padding: "12px 16px 0" }}>
             <div
               style={{
-                height: "100%",
-                width: `${timerPct}%`,
-                background: timerColor,
-                borderRadius: 4,
-                transition: "width 0.9s linear, background 0.3s",
-              }}
-            />
-          </div>
-
-          {/* Character — tıklanabilir alan */}
-          <div
-            style={{ position: "relative", display: "inline-block", cursor: "pointer" }}
-            onClick={handleSlap}
-            onTouchStart={handleSlap}
-          >
-            <div
-              style={{
-                animation: shake ? "shake 0.12s ease" : "none",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 10,
+                background: "white",
+                borderRadius: 18,
+                padding: "10px 20px",
+                boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
               }}
             >
-              <HuseyinImage slapped={slapped} />
-            </div>
-            {/* Slap effects */}
-            {effects.map((ef) => (
-              <div
-                key={ef.id}
-                style={{
-                  position: "absolute",
-                  left: ef.x,
-                  top: ef.y,
-                  transform: "translate(-50%, -50%)",
-                  fontSize: 32,
-                  fontWeight: 900,
-                  color: "#E74C3C",
-                  pointerEvents: "none",
-                  animation: "popUp 0.7s ease forwards",
-                  textShadow: "0 2px 6px rgba(0,0,0,0.25)",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                ŞAP!
+              <div>
+                <div style={{ fontSize: 11, color: "#95A5A6", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>PUAN</div>
+                <div style={{ fontSize: 32, fontWeight: 900, color: "#2C3E50", lineHeight: 1 }}>{score}</div>
               </div>
-            ))}
+              <div style={{ fontSize: 13, color: "#BDC3C7", fontWeight: 600 }}>Yakala! 👋</div>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: 11, color: "#95A5A6", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>SÜRE</div>
+                <div style={{ fontSize: 32, fontWeight: 900, color: timerColor, lineHeight: 1, transition: "color 0.3s" }}>{timeLeft}s</div>
+              </div>
+            </div>
+            <div style={{ height: 7, background: "#ECF0F1", borderRadius: 4, overflow: "hidden", marginBottom: 6 }}>
+              <div
+                style={{
+                  height: "100%",
+                  width: `${timerPct}%`,
+                  background: timerColor,
+                  borderRadius: 4,
+                  transition: "width 0.9s linear, background 0.3s",
+                }}
+              />
+            </div>
           </div>
 
-          <div style={{ marginTop: 16, color: "#BDC3C7", fontSize: 15 }}>
-            Hüseyin'e tıkla! 👆
+          {/* ARENA */}
+          <div
+            ref={arenaRef}
+            style={{
+              flex: 1,
+              position: "relative",
+              overflow: "hidden",
+              cursor: "default",
+            }}
+          >
+            {/* Running character */}
+            <div
+              onClick={handleSlap}
+              onTouchStart={handleSlap}
+              style={{
+                position: "absolute",
+                left: pos.x,
+                top: pos.y,
+                width: CHAR_W,
+                height: CHAR_H,
+                cursor: "pointer",
+                transition: slapped
+                  ? "none"
+                  : `left ${MOVE_INTERVAL * 0.6}ms cubic-bezier(0.4,0,0.2,1), top ${MOVE_INTERVAL * 0.6}ms cubic-bezier(0.4,0,0.2,1)`,
+                animation: slapped ? "shake 0.15s ease" : "none",
+              }}
+            >
+              <HuseyinImage slapped={slapped} facingRight={facingRight} />
+
+              {/* ŞAP effects */}
+              {effects.map((ef) => (
+                <div
+                  key={ef.id}
+                  style={{
+                    position: "absolute",
+                    left: ef.x,
+                    top: ef.y,
+                    transform: "translate(-50%, -50%)",
+                    fontSize: 30,
+                    fontWeight: 900,
+                    color: "#E74C3C",
+                    pointerEvents: "none",
+                    animation: "popUp 0.7s ease forwards",
+                    textShadow: "0 2px 6px rgba(0,0,0,0.25)",
+                    whiteSpace: "nowrap",
+                    zIndex: 10,
+                  }}
+                >
+                  ŞAP!
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}
 
       {/* END SCREEN */}
       {phase === "ended" && (
-        <div style={{ textAlign: "center", animation: "fadeIn 0.5s ease" }}>
+        <div style={{ textAlign: "center", animation: "fadeIn 0.5s ease", padding: 20 }}>
           <div style={{ fontSize: 48, marginBottom: 8 }}>🎉</div>
           <div style={{ fontSize: 28, fontWeight: 900, color: "#E74C3C", marginBottom: 4 }}>
             Hüseyin yakalandı!
@@ -301,7 +342,6 @@ export default function App() {
           <div style={{ fontSize: 17, color: "#7F8C8D", marginBottom: 24 }}>
             30 saniye bitti!
           </div>
-
           <div
             style={{
               background: "white",
@@ -322,11 +362,9 @@ export default function App() {
               şaplak vurdun! 👋
             </div>
           </div>
-
-          <div style={{ marginBottom: 24, display: "flex", justifyContent: "center" }}>
-            <HuseyinImage slapped={true} />
+          <div style={{ marginBottom: 28, display: "flex", justifyContent: "center" }}>
+            <HuseyinImage slapped={true} facingRight={true} />
           </div>
-
           <button
             onClick={startGame}
             style={{
@@ -340,10 +378,7 @@ export default function App() {
               cursor: "pointer",
               boxShadow: "0 6px 20px rgba(39,174,96,0.4)",
               letterSpacing: 1,
-              transition: "transform 0.1s",
             }}
-            onMouseDown={(e) => (e.currentTarget.style.transform = "scale(0.96)")}
-            onMouseUp={(e) => (e.currentTarget.style.transform = "scale(1)")}
           >
             🔄 Tekrar Oyna
           </button>
@@ -361,10 +396,10 @@ export default function App() {
           100% { opacity: 0; transform: translate(-50%, -130%) scale(1); }
         }
         @keyframes shake {
-          0%   { transform: rotate(0deg); }
-          25%  { transform: rotate(-6deg) scale(0.95); }
-          75%  { transform: rotate(6deg) scale(0.95); }
-          100% { transform: rotate(0deg); }
+          0%   { transform: rotate(0deg) scale(1); }
+          25%  { transform: rotate(-8deg) scale(0.9); }
+          75%  { transform: rotate(8deg) scale(0.9); }
+          100% { transform: rotate(0deg) scale(1); }
         }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body { margin: 0; }
