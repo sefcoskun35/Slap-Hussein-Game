@@ -10,65 +10,60 @@ interface SlapEffect {
   y: number;
 }
 
-function HuseyinFace({ slapped }: { slapped: boolean }) {
+function HuseyinImage({ slapped }: { slapped: boolean }) {
+  const [imgError, setImgError] = useState(false);
+
   return (
-    <svg
-      viewBox="0 0 200 220"
-      width="200"
-      height="220"
-      xmlns="http://www.w3.org/2000/svg"
-      style={{ filter: slapped ? "brightness(1.3) saturate(1.5)" : "none", transition: "filter 0.1s" }}
+    <div
+      style={{
+        width: 260,
+        height: 260,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        filter: slapped ? "brightness(1.25) saturate(1.5) hue-rotate(-10deg)" : "none",
+        transform: slapped ? "scale(0.92)" : "scale(1)",
+        transition: "transform 0.1s, filter 0.1s",
+      }}
     >
-      {/* Neck */}
-      <rect x="80" y="175" width="40" height="30" rx="8" fill="#F5C57A" />
-      {/* Head */}
-      <ellipse cx="100" cy="105" rx="75" ry="80" fill="#F5C57A" />
-      {/* Hair */}
-      <ellipse cx="100" cy="32" rx="75" ry="38" fill="#3D2314" />
-      <rect x="25" y="32" width="150" height="30" fill="#3D2314" />
-      {/* Ears */}
-      <ellipse cx="25" cy="110" rx="14" ry="18" fill="#F5C57A" />
-      <ellipse cx="175" cy="110" rx="14" ry="18" fill="#F5C57A" />
-      {/* Eyebrows */}
-      <path d="M55 78 Q70 70 85 78" stroke="#3D2314" strokeWidth="5" fill="none" strokeLinecap="round" />
-      <path d="M115 78 Q130 70 145 78" stroke="#3D2314" strokeWidth="5" fill="none" strokeLinecap="round" />
-      {/* Eyes */}
-      {slapped ? (
-        <>
-          {/* X eyes when slapped */}
-          <line x1="60" y1="90" x2="76" y2="104" stroke="#3D2314" strokeWidth="4" strokeLinecap="round" />
-          <line x1="76" y1="90" x2="60" y2="104" stroke="#3D2314" strokeWidth="4" strokeLinecap="round" />
-          <line x1="124" y1="90" x2="140" y2="104" stroke="#3D2314" strokeWidth="4" strokeLinecap="round" />
-          <line x1="140" y1="90" x2="124" y2="104" stroke="#3D2314" strokeWidth="4" strokeLinecap="round" />
-        </>
+      {imgError ? (
+        <div
+          style={{
+            width: 220,
+            height: 220,
+            borderRadius: "50%",
+            background: "#F5C57A",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            border: "4px dashed #E8A855",
+            color: "#A0856A",
+            fontSize: 14,
+            fontWeight: 600,
+            textAlign: "center",
+            gap: 8,
+          }}
+        >
+          <span style={{ fontSize: 48 }}>👤</span>
+          <span>huseyin.png<br />bekleniyor…</span>
+        </div>
       ) : (
-        <>
-          <ellipse cx="68" cy="97" rx="14" ry="14" fill="white" />
-          <ellipse cx="132" cy="97" rx="14" ry="14" fill="white" />
-          <ellipse cx="71" cy="99" rx="8" ry="8" fill="#2C1810" />
-          <ellipse cx="135" cy="99" rx="8" ry="8" fill="#2C1810" />
-          <ellipse cx="74" cy="96" rx="3" ry="3" fill="white" />
-          <ellipse cx="138" cy="96" rx="3" ry="3" fill="white" />
-        </>
+        <img
+          src="/huseyin.png"
+          alt="Hüseyin"
+          onError={() => setImgError(true)}
+          draggable={false}
+          style={{
+            width: 260,
+            height: 260,
+            objectFit: "contain",
+            display: "block",
+            pointerEvents: "none",
+          }}
+        />
       )}
-      {/* Nose */}
-      <ellipse cx="100" cy="115" rx="10" ry="7" fill="#E8A855" />
-      {/* Mustache */}
-      <path d="M72 132 Q100 144 128 132" stroke="#3D2314" strokeWidth="6" fill="none" strokeLinecap="round" />
-      {/* Mouth */}
-      {slapped ? (
-        <path d="M80 152 Q100 145 120 152" stroke="#C0392B" strokeWidth="4" fill="none" strokeLinecap="round" />
-      ) : (
-        <path d="M80 150 Q100 162 120 150" stroke="#C0392B" strokeWidth="4" fill="none" strokeLinecap="round" />
-      )}
-      {/* Cheek blush when slapped */}
-      {slapped && (
-        <>
-          <ellipse cx="45" cy="120" rx="18" ry="10" fill="#FF6B6B" opacity="0.5" />
-          <ellipse cx="155" cy="120" rx="18" ry="10" fill="#FF6B6B" opacity="0.5" />
-        </>
-      )}
-    </svg>
+    </div>
   );
 }
 
@@ -172,11 +167,11 @@ export default function App() {
           <div style={{ fontSize: "52px", fontWeight: 900, color: "#2C3E50", lineHeight: 1.1, marginBottom: 8 }}>
             👋 Hüseyin'e
           </div>
-          <div style={{ fontSize: "52px", fontWeight: 900, color: "#E74C3C", lineHeight: 1.1, marginBottom: 32 }}>
+          <div style={{ fontSize: "52px", fontWeight: 900, color: "#E74C3C", lineHeight: 1.1, marginBottom: 24 }}>
             Şaplak!
           </div>
-          <div style={{ marginBottom: 32 }}>
-            <HuseyinFace slapped={false} />
+          <div style={{ marginBottom: 24, display: "flex", justifyContent: "center" }}>
+            <HuseyinImage slapped={false} />
           </div>
           <p style={{ color: "#7F8C8D", fontSize: 17, marginBottom: 12 }}>
             30 saniyede eliminden geldiğince şaplak at!
@@ -254,7 +249,7 @@ export default function App() {
             />
           </div>
 
-          {/* Character */}
+          {/* Character — tıklanabilir alan */}
           <div
             style={{ position: "relative", display: "inline-block", cursor: "pointer" }}
             onClick={handleSlap}
@@ -263,11 +258,9 @@ export default function App() {
             <div
               style={{
                 animation: shake ? "shake 0.12s ease" : "none",
-                transform: slapped ? "scale(0.92)" : "scale(1)",
-                transition: "transform 0.1s",
               }}
             >
-              <HuseyinFace slapped={slapped} />
+              <HuseyinImage slapped={slapped} />
             </div>
             {/* Slap effects */}
             {effects.map((ef) => (
@@ -278,12 +271,12 @@ export default function App() {
                   left: ef.x,
                   top: ef.y,
                   transform: "translate(-50%, -50%)",
-                  fontSize: 28,
+                  fontSize: 32,
                   fontWeight: 900,
                   color: "#E74C3C",
                   pointerEvents: "none",
                   animation: "popUp 0.7s ease forwards",
-                  textShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                  textShadow: "0 2px 6px rgba(0,0,0,0.25)",
                   whiteSpace: "nowrap",
                 }}
               >
@@ -292,7 +285,7 @@ export default function App() {
             ))}
           </div>
 
-          <div style={{ marginTop: 20, color: "#BDC3C7", fontSize: 15 }}>
+          <div style={{ marginTop: 16, color: "#BDC3C7", fontSize: 15 }}>
             Hüseyin'e tıkla! 👆
           </div>
         </div>
@@ -305,7 +298,7 @@ export default function App() {
           <div style={{ fontSize: 28, fontWeight: 900, color: "#E74C3C", marginBottom: 4 }}>
             Hüseyin yakalandı!
           </div>
-          <div style={{ fontSize: 17, color: "#7F8C8D", marginBottom: 28 }}>
+          <div style={{ fontSize: 17, color: "#7F8C8D", marginBottom: 24 }}>
             30 saniye bitti!
           </div>
 
@@ -315,7 +308,7 @@ export default function App() {
               borderRadius: 24,
               padding: "28px 48px",
               boxShadow: "0 8px 32px rgba(0,0,0,0.1)",
-              marginBottom: 32,
+              marginBottom: 24,
               display: "inline-block",
             }}
           >
@@ -330,8 +323,8 @@ export default function App() {
             </div>
           </div>
 
-          <div style={{ marginBottom: 32 }}>
-            <HuseyinFace slapped={true} />
+          <div style={{ marginBottom: 24, display: "flex", justifyContent: "center" }}>
+            <HuseyinImage slapped={true} />
           </div>
 
           <button
