@@ -50,7 +50,7 @@ function HuseyinImage({ slapped }: { slapped: boolean }) {
         </div>
       ) : (
         <img
-          src="/huseyin.png"
+          src={`${import.meta.env.BASE_URL}huseyin.png`}
           alt="Hüseyin"
           onError={() => setImgError(true)}
           draggable={false}
