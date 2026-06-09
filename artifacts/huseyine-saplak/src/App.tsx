@@ -239,8 +239,30 @@ export default function App() {
       {/* GAME SCREEN */}
       {phase === "playing" && (
         <div style={{ width: "100%", display: "flex", flexDirection: "column", height: "100dvh" }}>
+          {/* HEADER */}
+          <div style={{
+            textAlign: "center",
+            padding: "14px 16px 0",
+            letterSpacing: "0.5px",
+          }}>
+            <span style={{
+              fontSize: 20,
+              fontWeight: 900,
+              color: "#2C3E50",
+              textTransform: "uppercase",
+              letterSpacing: "2px",
+            }}>👋 Hüseyin'e </span>
+            <span style={{
+              fontSize: 20,
+              fontWeight: 900,
+              color: "#E74C3C",
+              textTransform: "uppercase",
+              letterSpacing: "2px",
+            }}>Şaplak At!</span>
+          </div>
+
           {/* HUD */}
-          <div style={{ padding: "12px 16px 0" }}>
+          <div style={{ padding: "8px 16px 0" }}>
             <div
               style={{
                 display: "flex",
