@@ -322,7 +322,7 @@ export default function App() {
                 transition: slapped
                   ? "none"
                   : `left ${MOVE_INTERVAL * 0.6}ms cubic-bezier(0.4,0,0.2,1), top ${MOVE_INTERVAL * 0.6}ms cubic-bezier(0.4,0,0.2,1)`,
-                animation: slapped ? "shake 0.15s ease" : "none",
+                animation: slapped ? "shake 0.15s ease" : "run 0.45s ease-in-out infinite",
               }}
             >
               <HuseyinImage slapped={slapped} facingRight={facingRight} />
@@ -422,6 +422,16 @@ export default function App() {
           25%  { transform: rotate(-8deg) scale(0.9); }
           75%  { transform: rotate(8deg) scale(0.9); }
           100% { transform: rotate(0deg) scale(1); }
+        }
+        @keyframes run {
+          0%   { transform: translateY(0px)   rotate(-4deg) scaleY(1);    }
+          15%  { transform: translateY(-10px) rotate(0deg)  scaleY(1.04); }
+          30%  { transform: translateY(-14px) rotate(4deg)  scaleY(1);    }
+          45%  { transform: translateY(-8px)  rotate(0deg)  scaleY(0.97); }
+          60%  { transform: translateY(0px)   rotate(-3deg) scaleY(1);    }
+          75%  { transform: translateY(-6px)  rotate(0deg)  scaleY(1.02); }
+          90%  { transform: translateY(-10px) rotate(3deg)  scaleY(1);    }
+          100% { transform: translateY(0px)   rotate(-4deg) scaleY(1);    }
         }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body { margin: 0; }
