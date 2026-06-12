@@ -1,9 +1,46 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { QueryClient, QueryClientProvider, useQuery, useMutation } from "@tanstack/react-query";
 
 const GAME_DURATION = 30;
 const CHAR_W = 180;
 const CHAR_H = 200;
 const MOVE_INTERVAL = 700;
+
+const queryClient = new QueryClient();
+
+const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/+$/, "");
+
+interface ScoreEntry {
+  id: number;
+  playerName: string;
+  score: number;
+  createdAt: string;
+}
+
+function useGetLeaderboard(params: { limit: number }) {
+  return useQuery<{ scores: ScoreEntry[] }>({
+    queryKey: ["/leaderboard"],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE}/leaderboard?limit=${params.limit}`);
+      if (!res.ok) throw new Error("Skor tablosu yüklenemedi");
+      return res.json();
+    },
+  });
+}
+
+function useSubmitScore() {
+  return useMutation<ScoreEntry, Error, { data: { playerName: string; score: number } }>({
+    mutationFn: async ({ data }) => {
+      const res = await fetch(`${API_BASE}/scores`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error("Skor kaydedilemedi");
+      return res.json();
+    },
+  });
+}
 
 type GamePhase = "start" | "playing" | "ended";
 
@@ -70,7 +107,279 @@ function HuseyinImage({ slapped, facingRight }: { slapped: boolean; facingRight:
   );
 }
 
-export default function App() {
+function LeaderboardPanel({ onClose }: { onClose: () => void }) {
+  const { data, isLoading, isError, refetch } = useGetLeaderboard({ limit: 10 });
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.5)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 100,
+        padding: 16,
+        animation: "fadeIn 0.25s ease",
+      }}
+    >
+      <div
+        style={{
+          background: "white",
+          borderRadius: 28,
+          padding: "28px 24px",
+          width: "100%",
+          maxWidth: 380,
+          boxShadow: "0 16px 48px rgba(0,0,0,0.2)",
+          maxHeight: "80dvh",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+          <div style={{ fontSize: 22, fontWeight: 900, color: "#2C3E50" }}>🏆 Skor Tablosu</div>
+          <button
+            onClick={onClose}
+            style={{
+              background: "#ECF0F1",
+              border: "none",
+              borderRadius: 12,
+              width: 36,
+              height: 36,
+              cursor: "pointer",
+              fontSize: 18,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#7F8C8D",
+            }}
+          >
+            ✕
+          </button>
+        </div>
+
+        {isLoading && (
+          <div style={{ textAlign: "center", padding: "32px 0", color: "#95A5A6", fontSize: 15 }}>
+            Yükleniyor…
+          </div>
+        )}
+
+        {isError && (
+          <div style={{ textAlign: "center", padding: "24px 0" }}>
+            <div style={{ color: "#E74C3C", fontSize: 14, marginBottom: 12 }}>Skor tablosu yüklenemedi.</div>
+            <button
+              onClick={() => refetch()}
+              style={{
+                background: "#ECF0F1",
+                border: "none",
+                borderRadius: 10,
+                padding: "8px 20px",
+                cursor: "pointer",
+                fontSize: 14,
+                color: "#2C3E50",
+              }}
+            >
+              Tekrar Dene
+            </button>
+          </div>
+        )}
+
+        {data && data.scores.length === 0 && (
+          <div style={{ textAlign: "center", padding: "32px 0", color: "#95A5A6", fontSize: 15 }}>
+            Henüz skor yok. İlk sen ol!
+          </div>
+        )}
+
+        {data && data.scores.length > 0 && (
+          <div style={{ overflowY: "auto", flex: 1 }}>
+            {data.scores.map((entry, idx) => {
+              const medal = idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : null;
+              return (
+                <div
+                  key={entry.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    padding: "12px 14px",
+                    borderRadius: 16,
+                    marginBottom: 6,
+                    background: idx === 0 ? "linear-gradient(135deg, #FFF9E6, #FFF3C7)" : idx % 2 === 0 ? "#F8F9FA" : "white",
+                    border: idx === 0 ? "1.5px solid #F5C518" : "1.5px solid transparent",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: "50%",
+                      background: idx === 0 ? "#F5C518" : idx === 1 ? "#BDC3C7" : idx === 2 ? "#CD7F32" : "#ECF0F1",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: medal ? 16 : 13,
+                      fontWeight: 800,
+                      color: idx < 3 ? "white" : "#7F8C8D",
+                      flexShrink: 0,
+                      marginRight: 12,
+                    }}
+                  >
+                    {medal ?? (idx + 1)}
+                  </div>
+                  <div style={{ flex: 1, overflow: "hidden" }}>
+                    <div
+                      style={{
+                        fontSize: 15,
+                        fontWeight: 700,
+                        color: "#2C3E50",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
+                      {entry.playerName}
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 20,
+                      fontWeight: 900,
+                      color: idx === 0 ? "#E67E22" : "#E74C3C",
+                      marginLeft: 12,
+                      flexShrink: 0,
+                    }}
+                  >
+                    {entry.score}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ScoreSubmitForm({
+  score,
+  onSubmitted,
+}: {
+  score: number;
+  onSubmitted: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+  const { mutate, isPending, isError } = useSubmitScore();
+
+  const handleSubmit = () => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    mutate(
+      { data: { playerName: trimmed, score } },
+      {
+        onSuccess: () => {
+          setSubmitted(true);
+          queryClient.invalidateQueries({ queryKey: ["/leaderboard"] });
+          onSubmitted();
+        },
+      }
+    );
+  };
+
+  if (submitted) {
+    return (
+      <div
+        style={{
+          background: "linear-gradient(135deg, #EAFAF1, #D5F5E3)",
+          border: "1.5px solid #82E0AA",
+          borderRadius: 18,
+          padding: "14px 20px",
+          textAlign: "center",
+          fontSize: 15,
+          color: "#1E8449",
+          fontWeight: 700,
+        }}
+      >
+        ✅ Skor kaydedildi!
+      </div>
+    );
+  }
+
+  return (
+    <div
+      style={{
+        background: "white",
+        borderRadius: 20,
+        padding: "20px",
+        boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
+        marginBottom: 8,
+      }}
+    >
+      <div
+        style={{
+          fontSize: 13,
+          fontWeight: 700,
+          color: "#7F8C8D",
+          textTransform: "uppercase",
+          letterSpacing: 1,
+          marginBottom: 10,
+          textAlign: "center",
+        }}
+      >
+        Skoru Kaydet
+      </div>
+      <div style={{ display: "flex", gap: 8 }}>
+        <input
+          type="text"
+          placeholder="Adın nedir?"
+          value={name}
+          onChange={(e) => setName(e.target.value.slice(0, 50))}
+          onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+          maxLength={50}
+          style={{
+            flex: 1,
+            border: "2px solid #ECF0F1",
+            borderRadius: 12,
+            padding: "10px 14px",
+            fontSize: 15,
+            outline: "none",
+            color: "#2C3E50",
+            fontFamily: "inherit",
+          }}
+          autoFocus
+        />
+        <button
+          onClick={handleSubmit}
+          disabled={isPending || !name.trim()}
+          style={{
+            background:
+              isPending || !name.trim()
+                ? "#BDC3C7"
+                : "linear-gradient(135deg, #E74C3C, #C0392B)",
+            color: "white",
+            border: "none",
+            borderRadius: 12,
+            padding: "10px 18px",
+            fontSize: 18,
+            cursor: isPending || !name.trim() ? "not-allowed" : "pointer",
+            fontWeight: 800,
+            transition: "background 0.2s",
+          }}
+        >
+          {isPending ? "…" : "👋"}
+        </button>
+      </div>
+      {isError && (
+        <div style={{ color: "#E74C3C", fontSize: 12, marginTop: 6, textAlign: "center" }}>
+          Kaydedilemedi, tekrar dene.
+        </div>
+      )}
+    </div>
+  );
+}
+
+function GameApp() {
   const [phase, setPhase] = useState<GamePhase>("start");
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(GAME_DURATION);
@@ -78,6 +387,8 @@ export default function App() {
   const [effects, setEffects] = useState<SlapEffect[]>([]);
   const [pos, setPos] = useState({ x: 50, y: 50 });
   const [facingRight, setFacingRight] = useState(true);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [scoreSubmitted, setScoreSubmitted] = useState(false);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const runRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -119,6 +430,7 @@ export default function App() {
     setSlapped(false);
     setFacingRight(true);
     setPos(start);
+    setScoreSubmitted(false);
     setPhase("playing");
   }, []);
 
@@ -229,9 +541,28 @@ export default function App() {
               cursor: "pointer",
               boxShadow: "0 6px 20px rgba(39,174,96,0.45)",
               letterSpacing: 1,
+              display: "block",
+              width: "100%",
+              marginBottom: 14,
             }}
           >
             🎮 OYNA
+          </button>
+          <button
+            onClick={() => setShowLeaderboard(true)}
+            style={{
+              background: "white",
+              color: "#2C3E50",
+              border: "2px solid #ECF0F1",
+              borderRadius: 16,
+              padding: "14px 40px",
+              fontSize: 17,
+              fontWeight: 700,
+              cursor: "pointer",
+              width: "100%",
+            }}
+          >
+            🏆 Skor Tablosu
           </button>
         </div>
       )}
@@ -356,12 +687,12 @@ export default function App() {
 
       {/* END SCREEN */}
       {phase === "ended" && (
-        <div style={{ textAlign: "center", animation: "fadeIn 0.5s ease", padding: 20 }}>
+        <div style={{ textAlign: "center", animation: "fadeIn 0.5s ease", padding: 20, width: "100%", maxWidth: 400 }}>
           <div style={{ fontSize: 48, marginBottom: 8 }}>🎉</div>
           <div style={{ fontSize: 28, fontWeight: 900, color: "#E74C3C", marginBottom: 4 }}>
             Hüseyin yakalandı!
           </div>
-          <div style={{ fontSize: 17, color: "#7F8C8D", marginBottom: 24 }}>
+          <div style={{ fontSize: 17, color: "#7F8C8D", marginBottom: 20 }}>
             30 saniye bitti!
           </div>
           <div
@@ -370,7 +701,7 @@ export default function App() {
               borderRadius: 24,
               padding: "28px 48px",
               boxShadow: "0 8px 32px rgba(0,0,0,0.1)",
-              marginBottom: 24,
+              marginBottom: 20,
               display: "inline-block",
             }}
           >
@@ -384,28 +715,54 @@ export default function App() {
               şaplak vurdun! 👋
             </div>
           </div>
-          <div style={{ marginBottom: 28, display: "flex", justifyContent: "center" }}>
+
+          <div style={{ marginBottom: 20, display: "flex", justifyContent: "center" }}>
             <HuseyinImage slapped={true} facingRight={true} />
           </div>
-          <button
-            onClick={startGame}
-            style={{
-              background: "linear-gradient(135deg, #27AE60, #2ECC71)",
-              color: "white",
-              border: "none",
-              borderRadius: 20,
-              padding: "18px 52px",
-              fontSize: 24,
-              fontWeight: 800,
-              cursor: "pointer",
-              boxShadow: "0 6px 20px rgba(39,174,96,0.4)",
-              letterSpacing: 1,
-            }}
-          >
-            🔄 Tekrar Oyna
-          </button>
+
+          {/* Score submission */}
+          <div style={{ marginBottom: 16, width: "100%" }}>
+            <ScoreSubmitForm score={score} onSubmitted={() => setScoreSubmitted(true)} />
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <button
+              onClick={startGame}
+              style={{
+                background: "linear-gradient(135deg, #27AE60, #2ECC71)",
+                color: "white",
+                border: "none",
+                borderRadius: 20,
+                padding: "18px 52px",
+                fontSize: 24,
+                fontWeight: 800,
+                cursor: "pointer",
+                boxShadow: "0 6px 20px rgba(39,174,96,0.4)",
+                letterSpacing: 1,
+              }}
+            >
+              🔄 Tekrar Oyna
+            </button>
+            <button
+              onClick={() => setShowLeaderboard(true)}
+              style={{
+                background: "white",
+                color: "#2C3E50",
+                border: "2px solid #ECF0F1",
+                borderRadius: 16,
+                padding: "14px 40px",
+                fontSize: 17,
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              🏆 Skor Tablosu
+            </button>
+          </div>
         </div>
       )}
+
+      {showLeaderboard && <LeaderboardPanel onClose={() => setShowLeaderboard(false)} />}
 
       <style>{`
         @keyframes fadeIn {
@@ -435,7 +792,16 @@ export default function App() {
         }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body { margin: 0; }
+        input:focus { border-color: #E74C3C !important; }
       `}</style>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <GameApp />
+    </QueryClientProvider>
   );
 }
