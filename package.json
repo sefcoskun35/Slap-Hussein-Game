@@ -4,7 +4,7 @@
   "license": "MIT",
   "scripts": {
     "preinstall": "sh -c 'rm -f package-lock.json yarn.lock; case \"$npm_config_user_agent\" in pnpm/*) ;; *) true ;; esac'",
-    "build": "cd artifacts/huseyine-saplak && npm install && npm run build",
+    "build": "rm -rf node_modules && cd artifacts/huseyine-saplak && npm install && npm run build",
     "start": "cd artifacts/huseyine-saplak && npm start",
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
