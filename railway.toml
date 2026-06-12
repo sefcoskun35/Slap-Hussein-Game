@@ -1,0 +1,7 @@
+[build]
+builder = "NIXPACKS"
+buildCommand = "npm install -g pnpm && pnpm install && pnpm --filter @workspace/huseyine-saplak run build"
+
+[deploy]
+startCommand = "pnpm --filter @workspace/huseyine-saplak run start"
+restartPolicyType = "ON_FAILURE"
