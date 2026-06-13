@@ -28,6 +28,18 @@ function useGetLeaderboard(params: { limit: number }) {
   });
 }
 
+function useGetRank(score: number | null) {
+  return useQuery<{ rank: number; total: number; isStrictRecord: boolean }>({
+    queryKey: ["/leaderboard/rank", score],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE}/leaderboard/rank?score=${score}`);
+      if (!res.ok) throw new Error("Sıralama alınamadı");
+      return res.json();
+    },
+    enabled: score !== null,
+  });
+}
+
 function useSubmitScore() {
   return useMutation<ScoreEntry, Error, { data: { playerName: string; score: number } }>({
     mutationFn: async ({ data }) => {
@@ -289,6 +301,32 @@ function useNickname() {
   return [nickname, saveNickname] as const;
 }
 
+const PERSONAL_BEST_KEY = "huseyine_saplak_best";
+
+function usePersonalBest() {
+  const [personalBest, setPersonalBestState] = useState<number>(() => {
+    try {
+      const stored = localStorage.getItem(PERSONAL_BEST_KEY);
+      return stored ? parseInt(stored, 10) : 0;
+    } catch {
+      return 0;
+    }
+  });
+
+  const updatePersonalBest = (score: number) => {
+    if (score > personalBest) {
+      setPersonalBestState(score);
+      try {
+        localStorage.setItem(PERSONAL_BEST_KEY, String(score));
+      } catch {
+        // ignore storage errors
+      }
+    }
+  };
+
+  return [personalBest, updatePersonalBest] as const;
+}
+
 function ScoreSubmitForm({
   score,
   initialName,
@@ -426,6 +464,12 @@ function GameApp() {
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [scoreSubmitted, setScoreSubmitted] = useState(false);
   const [nickname, saveNickname] = useNickname();
+  const [personalBest, updatePersonalBest] = usePersonalBest();
+  const personalBestRef = useRef(personalBest);
+  personalBestRef.current = personalBest;
+  const [endedScore, setEndedScore] = useState<number | null>(null);
+  const [isNewPersonalBest, setIsNewPersonalBest] = useState(false);
+  const rankQuery = useGetRank(endedScore);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const runRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -468,6 +512,8 @@ function GameApp() {
     setFacingRight(true);
     setPos(start);
     setScoreSubmitted(false);
+    setEndedScore(null);
+    setIsNewPersonalBest(false);
     setPhase("playing");
   }, []);
 
@@ -478,6 +524,13 @@ function GameApp() {
           if (t <= 1) {
             clearInterval(timerRef.current!);
             clearInterval(runRef.current!);
+            setScore((s) => {
+              const prevBest = personalBestRef.current;
+              setEndedScore(s);
+              setIsNewPersonalBest(s > 0 && s > prevBest);
+              updatePersonalBest(s);
+              return s;
+            });
             setPhase("ended");
             return 0;
           }
@@ -788,6 +841,64 @@ function GameApp() {
               şaplak vurdun! 👋
             </div>
           </div>
+
+          {/* Rank badge */}
+          {rankQuery.data && (() => {
+            const { rank, total, isStrictRecord } = rankQuery.data;
+            const isAllTimeRecord = isStrictRecord;
+            const isTopThree = rank <= 3 && total > 1;
+            const medal = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : null;
+            const bg = isAllTimeRecord
+              ? "linear-gradient(135deg, #FFF9E6, #FFF3C7)"
+              : isNewPersonalBest
+              ? "linear-gradient(135deg, #EAFAF1, #D5F5E3)"
+              : isTopThree
+              ? "linear-gradient(135deg, #EAF4FB, #D6EAF8)"
+              : "linear-gradient(135deg, #F8F9FA, #ECF0F1)";
+            const border = isAllTimeRecord
+              ? "2px solid #F5C518"
+              : isNewPersonalBest
+              ? "2px solid #82E0AA"
+              : isTopThree
+              ? "2px solid #5DADE2"
+              : "2px solid #D5D8DC";
+            const textColor = isAllTimeRecord ? "#7D6608" : isNewPersonalBest ? "#1E8449" : isTopThree ? "#1A5276" : "#2C3E50";
+            return (
+              <div
+                style={{
+                  background: bg,
+                  border,
+                  borderRadius: 18,
+                  padding: "14px 20px",
+                  marginBottom: 16,
+                  textAlign: "center",
+                  animation: "fadeIn 0.4s ease",
+                }}
+              >
+                {isAllTimeRecord && (
+                  <div style={{ fontSize: 13, fontWeight: 800, color: "#B7950B", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>
+                    🏆 Tüm zamanların rekoru!
+                  </div>
+                )}
+                {!isAllTimeRecord && isNewPersonalBest && (
+                  <div style={{ fontSize: 13, fontWeight: 800, color: "#1E8449", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>
+                    ⭐ Yeni kişisel rekor!
+                  </div>
+                )}
+                <div style={{ fontSize: 20, fontWeight: 900, color: textColor }}>
+                  {medal ? `${medal} ` : ""}
+                  {total === 0
+                    ? "İlk oynayan sensin!"
+                    : `${total} oyuncu arasında #${rank}. sıradasın!`}
+                </div>
+              </div>
+            );
+          })()}
+          {rankQuery.isLoading && (
+            <div style={{ textAlign: "center", fontSize: 14, color: "#95A5A6", marginBottom: 16 }}>
+              Sıralaman hesaplanıyor…
+            </div>
+          )}
 
           <div style={{ marginBottom: 20, display: "flex", justifyContent: "center" }}>
             <HuseyinImage slapped={true} facingRight={true} />
