@@ -261,14 +261,46 @@ function LeaderboardPanel({ onClose }: { onClose: () => void }) {
   );
 }
 
+const NICKNAME_KEY = "huseyine_saplak_nickname";
+
+function useNickname() {
+  const [nickname, setNicknameState] = useState<string>(() => {
+    try {
+      return localStorage.getItem(NICKNAME_KEY) ?? "";
+    } catch {
+      return "";
+    }
+  });
+
+  const saveNickname = (value: string) => {
+    const trimmed = value.slice(0, 50);
+    setNicknameState(trimmed);
+    try {
+      if (trimmed) {
+        localStorage.setItem(NICKNAME_KEY, trimmed);
+      } else {
+        localStorage.removeItem(NICKNAME_KEY);
+      }
+    } catch {
+      // ignore storage errors
+    }
+  };
+
+  return [nickname, saveNickname] as const;
+}
+
 function ScoreSubmitForm({
   score,
+  initialName,
   onSubmitted,
+  onNameChange,
 }: {
   score: number;
+  initialName: string;
   onSubmitted: () => void;
+  onNameChange: (name: string) => void;
 }) {
-  const [name, setName] = useState("");
+  const [name, setName] = useState(initialName);
   const [submitted, setSubmitted] = useState(false);
   const { mutate, isPending, isError } = useSubmitScore();
 
@@ -334,7 +366,11 @@ function ScoreSubmitForm({
           type="text"
           placeholder="Adın nedir?"
           value={name}
-          onChange={(e) => setName(e.target.value.slice(0, 50))}
+          onChange={(e) => {
+            const v = e.target.value.slice(0, 50);
+            setName(v);
+            onNameChange(v);
+          }}
           onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
           maxLength={50}
           style={{
@@ -389,6 +425,7 @@ function GameApp() {
   const [facingRight, setFacingRight] = useState(true);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [scoreSubmitted, setScoreSubmitted] = useState(false);
+  const [nickname, saveNickname] = useNickname();
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const runRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -525,9 +562,45 @@ function GameApp() {
           <p style={{ color: "#7F8C8D", fontSize: 17, marginBottom: 12 }}>
             Hüseyin kaçıyor — yakala ve şaplak at!
           </p>
-          <p style={{ color: "#7F8C8D", fontSize: 15, marginBottom: 32 }}>
+          <p style={{ color: "#7F8C8D", fontSize: 15, marginBottom: 20 }}>
             Her tıklama = <strong>+1 puan</strong> · 30 saniye
           </p>
+
+          {/* Nickname input */}
+          <div style={{ marginBottom: 20, textAlign: "left" }}>
+            <label
+              style={{
+                display: "block",
+                fontSize: 12,
+                fontWeight: 700,
+                color: "#95A5A6",
+                textTransform: "uppercase",
+                letterSpacing: 1,
+                marginBottom: 6,
+              }}
+            >
+              Takma adın
+            </label>
+            <input
+              type="text"
+              placeholder="Adını gir…"
+              value={nickname}
+              onChange={(e) => saveNickname(e.target.value)}
+              maxLength={50}
+              style={{
+                width: "100%",
+                border: "2px solid #ECF0F1",
+                borderRadius: 14,
+                padding: "12px 16px",
+                fontSize: 16,
+                outline: "none",
+                color: "#2C3E50",
+                fontFamily: "inherit",
+                boxSizing: "border-box",
+              }}
+            />
+          </div>
+
           <button
             onClick={startGame}
             style={{
@@ -722,7 +795,12 @@ function GameApp() {
 
           {/* Score submission */}
           <div style={{ marginBottom: 16, width: "100%" }}>
-            <ScoreSubmitForm score={score} onSubmitted={() => setScoreSubmitted(true)} />
+            <ScoreSubmitForm
+              score={score}
+              initialName={nickname}
+              onSubmitted={() => setScoreSubmitted(true)}
+              onNameChange={saveNickname}
+            />
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
