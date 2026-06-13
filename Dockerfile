@@ -1,17 +1,22 @@
 FROM node:20 AS builder
 WORKDIR /app
 
-COPY package*.json ./
-RUN npm install --ignore-scripts
+RUN corepack enable
+
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile --ignore-scripts
 
 COPY . ./
-RUN npm run build
+RUN pnpm run build
 
 FROM node:20-slim AS runner
 WORKDIR /app
 
+RUN corepack enable
+
 COPY --from=builder /app/package.json ./
-RUN npm install --omit=dev --ignore-scripts
+COPY --from=builder /app/pnpm-lock.yaml ./
+RUN pnpm install --prod --ignore-scripts
 
 COPY --from=builder /app/dist ./dist
 COPY serve.json ./
