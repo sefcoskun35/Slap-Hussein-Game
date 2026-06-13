@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { QueryClient, QueryClientProvider, useQuery, useMutation } from "@tanstack/react-query";
-
-const GAME_DURATION = 30;
+const GAME_DURATION = 30; // game duration in seconds
 const CHAR_W = 180;
 const CHAR_H = 200;
 const MOVE_INTERVAL = 700;
