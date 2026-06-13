@@ -1,0 +1,9 @@
+# Force npm — overrides any cached nixpacks plan that used pnpm
+[phases.install]
+cmds = ['npm install --ignore-scripts']
+
+[phases.build]
+cmds = ['npm run build']
+
+[start]
+cmd = 'npm start'

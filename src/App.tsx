@@ -351,6 +351,7 @@ function ScoreSubmitForm({
         onSuccess: () => {
           setSubmitted(true);
           queryClient.invalidateQueries({ queryKey: ["/leaderboard"] });
+          queryClient.invalidateQueries({ queryKey: ["/leaderboard/rank", score] });
           onSubmitted();
         },
       }
