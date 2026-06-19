@@ -82,12 +82,37 @@ interface SlapEffect {
   y: number;
 }
 
-function HuseyinImage({ slapped, facingRight }: { slapped: boolean; facingRight: boolean }) {
+interface FaceWound {
+  threshold: number;
+  x: number; y: number;
+  rx: number; ry: number;
+  color: string;
+  shadow?: string;
+}
+
+const FACE_WOUNDS: FaceWound[] = [
+  { threshold: 3,   x: 60,  y: 46, rx: 9,  ry: 6,  color: "rgba(210,55,55,0.62)",  shadow: "0 0 4px rgba(180,30,30,0.5)"  },
+  { threshold: 10,  x: 120, y: 44, rx: 10, ry: 6,  color: "rgba(190,45,75,0.60)",  shadow: "0 0 4px rgba(160,20,60,0.45)" },
+  { threshold: 20,  x: 70,  y: 27, rx: 13, ry: 7,  color: "rgba(55,18,18,0.58)",   shadow: "0 0 6px rgba(40,10,10,0.4)"   },
+  { threshold: 32,  x: 112, y: 26, rx: 12, ry: 6,  color: "rgba(50,16,22,0.56)",   shadow: "0 0 6px rgba(35,8,12,0.4)"    },
+  { threshold: 48,  x: 90,  y: 13, rx: 9,  ry: 3,  color: "rgba(220,18,18,0.88)",  shadow: "0 0 3px rgba(200,0,0,0.6)"    },
+  { threshold: 65,  x: 90,  y: 39, rx: 9,  ry: 9,  color: "rgba(230,85,75,0.55)",  shadow: "0 0 5px rgba(210,50,50,0.4)"  },
+  { threshold: 85,  x: 48,  y: 53, rx: 8,  ry: 6,  color: "rgba(155,42,125,0.54)", shadow: "0 0 4px rgba(120,20,100,0.4)" },
+  { threshold: 110, x: 132, y: 52, rx: 8,  ry: 6,  color: "rgba(150,40,120,0.52)", shadow: "0 0 4px rgba(120,20,100,0.4)" },
+  { threshold: 145, x: 90,  y: 61, rx: 11, ry: 6,  color: "rgba(200,58,58,0.60)",  shadow: "0 0 4px rgba(170,30,30,0.4)"  },
+  { threshold: 190, x: 36,  y: 20, rx: 7,  ry: 9,  color: "rgba(125,32,62,0.56)",  shadow: "0 0 4px rgba(100,15,45,0.4)"  },
+  { threshold: 240, x: 144, y: 20, rx: 7,  ry: 9,  color: "rgba(125,32,62,0.54)",  shadow: "0 0 4px rgba(100,15,45,0.4)"  },
+  { threshold: 290, x: 22,  y: 36, rx: 6,  ry: 10, color: "rgba(200,38,38,0.66)",  shadow: "0 0 4px rgba(175,15,15,0.5)"  },
+];
+
+function HuseyinImage({ slapped, facingRight, score = 0 }: { slapped: boolean; facingRight: boolean; score?: number }) {
   const [imgError, setImgError] = useState(false);
+  const activeWounds = FACE_WOUNDS.filter(w => score >= w.threshold);
 
   return (
     <div
       style={{
+        position: "relative",
         width: CHAR_W,
         height: CHAR_H,
         display: "flex",
@@ -135,6 +160,23 @@ function HuseyinImage({ slapped, facingRight }: { slapped: boolean; facingRight:
           }}
         />
       )}
+      {activeWounds.map((w, i) => (
+        <div
+          key={i}
+          style={{
+            position: "absolute",
+            left: w.x - w.rx,
+            top: w.y - w.ry,
+            width: w.rx * 2,
+            height: w.ry * 2,
+            borderRadius: "50%",
+            background: w.color,
+            boxShadow: w.shadow,
+            pointerEvents: "none",
+            transition: "opacity 0.4s ease",
+          }}
+        />
+      ))}
     </div>
   );
 }
@@ -651,7 +693,7 @@ function GameApp() {
             Şaplak!
           </div>
           <div style={{ marginBottom: 24, display: "flex", justifyContent: "center" }}>
-            <HuseyinImage slapped={false} facingRight={true} />
+            <HuseyinImage slapped={false} facingRight={true} score={0} />
           </div>
           <p style={{ color: "#7F8C8D", fontSize: 17, marginBottom: 12 }}>
             Hüseyin kaçıyor — yakala ve şaplak at!
@@ -848,7 +890,7 @@ function GameApp() {
                 animation: slapped ? "shake 0.15s ease" : "run 0.45s ease-in-out infinite",
               }}
             >
-              <HuseyinImage slapped={slapped} facingRight={facingRight} />
+              <HuseyinImage slapped={slapped} facingRight={facingRight} score={score} />
 
               {/* ŞAP effects */}
               {effects.map((ef) => (
@@ -967,7 +1009,7 @@ function GameApp() {
           )}
 
           <div style={{ marginBottom: 20, display: "flex", justifyContent: "center" }}>
-            <HuseyinImage slapped={true} facingRight={true} />
+            <HuseyinImage slapped={false} facingRight={true} score={endedScore ?? 0} />
           </div>
 
           {/* Score submission */}
