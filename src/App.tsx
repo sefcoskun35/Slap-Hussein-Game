@@ -4,6 +4,36 @@ const GAME_DURATION = 30; // game duration in seconds
 const CHAR_W = 180;
 const CHAR_H = 200;
 const MOVE_INTERVAL = 700;
+const SLOW_THRESHOLD_MS = 1500;
+
+function playSlap() {
+  try {
+    const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const ctx = new AudioCtx();
+    const bufferSize = Math.floor(ctx.sampleRate * 0.13);
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 2.5);
+    }
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    const filter = ctx.createBiquadFilter();
+    filter.type = "bandpass";
+    filter.frequency.value = 1400;
+    filter.Q.value = 0.7;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.9, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.13);
+    source.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+    source.start();
+    source.onended = () => ctx.close();
+  } catch {
+    // ignore audio errors
+  }
+}
 
 const queryClient = new QueryClient();
 
@@ -39,15 +69,23 @@ function useGetRank(score: number | null) {
   });
 }
 
+interface SubmitScoreError {
+  status: number;
+  message: string;
+}
+
 function useSubmitScore() {
-  return useMutation<ScoreEntry, Error, { data: { playerName: string; score: number } }>({
+  return useMutation<ScoreEntry, SubmitScoreError, { data: { playerName: string; score: number } }>({
     mutationFn: async ({ data }) => {
       const res = await fetch(`${API_BASE}/scores`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error("Skor kaydedilemedi");
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { error?: string };
+        throw { status: res.status, message: body?.error ?? "Skor kaydedilemedi" };
+      }
       return res.json();
     },
   });
@@ -339,7 +377,7 @@ function ScoreSubmitForm({
 }) {
   const [name, setName] = useState(initialName);
   const [submitted, setSubmitted] = useState(false);
-  const { mutate, isPending, isError } = useSubmitScore();
+  const { mutate, isPending, isError, error } = useSubmitScore();
 
   const handleSubmit = () => {
     const trimmed = name.trim();
@@ -446,7 +484,11 @@ function ScoreSubmitForm({
       </div>
       {isError && (
         <div style={{ color: "#E74C3C", fontSize: 12, marginTop: 6, textAlign: "center" }}>
-          Kaydedilemedi, tekrar dene.
+          {error?.status === 429
+            ? "Çok fazla deneme yaptın — biraz bekle ve tekrar dene."
+            : error?.status === 400
+            ? "Skor geçersiz görünüyor — oyunu tekrar oyna."
+            : "Kaydedilemedi, tekrar dene."}
         </div>
       )}
     </div>
@@ -470,6 +512,10 @@ function GameApp() {
   const [endedScore, setEndedScore] = useState<number | null>(null);
   const [isNewPersonalBest, setIsNewPersonalBest] = useState(false);
   const rankQuery = useGetRank(endedScore);
+
+  const [slowWarning, setSlowWarning] = useState(false);
+  const lastSlapTimeRef = useRef<number>(0);
+  const slowWarningTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const runRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -514,6 +560,8 @@ function GameApp() {
     setScoreSubmitted(false);
     setEndedScore(null);
     setIsNewPersonalBest(false);
+    setSlowWarning(false);
+    lastSlapTimeRef.current = 0;
     setPhase("playing");
   }, []);
 
@@ -563,6 +611,16 @@ function GameApp() {
         x = (e as React.MouseEvent).clientX - rect.left;
         y = (e as React.MouseEvent).clientY - rect.top;
       }
+
+      playSlap();
+
+      const now = Date.now();
+      if (lastSlapTimeRef.current > 0 && now - lastSlapTimeRef.current > SLOW_THRESHOLD_MS) {
+        if (slowWarningTimerRef.current) clearTimeout(slowWarningTimerRef.current);
+        setSlowWarning(true);
+        slowWarningTimerRef.current = setTimeout(() => setSlowWarning(false), 1600);
+      }
+      lastSlapTimeRef.current = now;
 
       setScore((s) => s + 1);
       frozenRef.current = true;
@@ -765,6 +823,31 @@ function GameApp() {
               cursor: "default",
             }}
           >
+            {/* Slow warning banner */}
+            {slowWarning && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: 12,
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  background: "rgba(231,76,60,0.92)",
+                  color: "white",
+                  borderRadius: 20,
+                  padding: "8px 20px",
+                  fontSize: 15,
+                  fontWeight: 800,
+                  whiteSpace: "nowrap",
+                  zIndex: 50,
+                  pointerEvents: "none",
+                  animation: "popUp 0.3s ease",
+                  boxShadow: "0 4px 16px rgba(231,76,60,0.4)",
+                }}
+              >
+                {nickname ? `${nickname} yavaş vur, ciğerimi deldin! 😤` : "Yavaş vuruyorsun, ciğerimi deldin! 😤"}
+              </div>
+            )}
+
             {/* Running character */}
             <div
               onClick={handleSlap}
